@@ -12,7 +12,7 @@ API_ID = 21623560  # أو استخدم Config.APP_ID
 API_HASH = '8c448c687d43262833a0ab100255fb43'  # أو استخدم Config.API_HASH
 
 # قناة الهدف (ضع ID القناة هنا)
-TARGET_CHANNEL_ID = -1001234567890  # غير هذا إلى ID قناتك
+TARGET_CHANNEL_ID = -1003113363809  # غير هذا إلى ID قناتك
 
 client = TelegramClient('delete_bot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
