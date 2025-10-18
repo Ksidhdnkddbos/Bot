@@ -16,47 +16,34 @@ client = TelegramClient('delete_bot', API_ID, API_HASH).start(bot_token=BOT_TOKE
 async def handle_channel_events(event):
     """يراقب أحداث القناة ويحذف إشعارات تغيير الاسم"""
     try:
-        logger.info(f"🔔 حدث في القناة: {event}")
+        logger.info(f"🔔 حدث تغيير اسم مكتشف!")
         
         # التحقق من أن الحدث هو تغيير اسم القناة
         if hasattr(event, 'action') and hasattr(event.action, 'title'):
-            logger.info(f"🎯 إشعار تغيير اسم: {event.action.title}")
+            logger.info(f"🎯 العنوان الجديد: {event.action.title}")
             
-            # البحث عن رسالة الإشعار في القناة
-            await asyncio.sleep(3)
-            
-            async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=10):
-                if (message.action and 
-                    hasattr(message.action, 'title') and 
-                    message.action.title == event.action.title):
-                    
-                    await message.delete()
-                    logger.info("🗑️ تم حذف إشعار تغيير الاسم بنجاح!")
-                    return
-            
-            logger.warning("⚠️ لم يتم العثور على رسالة الإشعار")
+            # الحذف المباشر لرسالة الحدث
+            if hasattr(event, 'action_message') and event.action_message:
+                await asyncio.sleep(2)
+                await event.action_message.delete()
+                logger.info("🗑️ تم حذف إشعار تغيير الاسم بنجاح!")
+            else:
+                logger.warning("⚠️ لا توجد رسالة إجراء مباشرة، جرب البحث...")
+                
+                # البحث عن الرسالة في القناة
+                await asyncio.sleep(3)
+                async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=5):
+                    if (message and 
+                        hasattr(message, 'action') and 
+                        message.action and 
+                        hasattr(message.action, 'title')):
+                        
+                        await message.delete()
+                        logger.info("🗑️ تم حذف الإشعار بالبحث!")
+                        break
                 
     except Exception as e:
         logger.error(f"❌ خطأ في حذف الإشعار: {e}")
-
-@client.on(events.NewMessage(chats=TARGET_CHANNEL_ID))
-async def handle_all_messages(event):
-    """يراقب جميع الرسائل للتصحيح"""
-    try:
-        message = event.message
-        if message.action:
-            logger.info(f"📋 رسالة إجراء: {message.action}")
-            
-            if hasattr(message.action, 'title'):
-                logger.info(f"🎯 إشعار تغيير اسم (من NewMessage): {message.action.title}")
-                
-                # حذف فوري لإشعار تغيير الاسم
-                await asyncio.sleep(2)
-                await message.delete()
-                logger.info("🗑️ تم الحذف من NewMessage!")
-                
-    except Exception as e:
-        logger.error(f"❌ خطأ في NewMessage: {e}")
 
 async def main():
     logger.info("🚀 بدأ تشغيل بوت حذف إشعارات تغيير الاسم...")
@@ -67,8 +54,14 @@ async def main():
     try:
         channel = await client.get_entity(TARGET_CHANNEL_ID)
         logger.info(f"📊 البوت يعمل على قناة: {channel.title}")
+        
+        # اختبار الصلاحيات
+        me_entity = await client.get_entity(me.id)
+        permissions = await client.get_permissions(TARGET_CHANNEL_ID, me_entity)
+        logger.info(f"🔐 صلاحية الحذف: {permissions.delete_messages}")
+        
     except Exception as e:
-        logger.error(f"❌ خطأ في الاتصال بالقناة: {e}")
+        logger.error(f"❌ خطأ في الاتصال: {e}")
         return
     
     await client.run_until_disconnected()
