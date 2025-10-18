@@ -1,20 +1,50 @@
 from telethon import TelegramClient
-from telethon.tl.functions.messages import DeleteHistory
-from telethon.tl.types import PeerChannel
+import asyncio
+import logging
 
-# إعداد المتغيرات
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('DeleteBot')
+
 BOT_TOKEN = '7785659342:AAF8sOyTxCCTBkjBjV_El_-kj5kGyjtdns8'
 API_ID = 21623560
 API_HASH = '8c448c687d43262833a0ab100255fb43'
 TARGET_CHANNEL_ID = -1003113363809
 
-# إنشاء عميل تليجرام
-client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+async def simple_delete_bot():
+    client = TelegramClient('simple_bot', API_ID, API_HASH)
+    await client.start(bot_token=BOT_TOKEN)
+    
+    logger.info("🚀 بوت الحذف البسيط يعمل...")
+    
+    last_message_id = 0
+    
+    while True:
+        try:
+            # الحصول على آخر رسالة
+            async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=1):
+                current_message_id = message.id
+                
+                # إذا كانت رسالة جديدة
+                if current_message_id > last_message_id:
+                    last_message_id = current_message_id
+                    
+                    # التحقق إذا كانت إشعار تغيير اسم
+                    if message.action and hasattr(message.action, 'title'):
+                        logger.info(f"🎯 إشعار تغيير اسم: {message.action.title}")
+                        
+                        # حذف فوري
+                        await message.delete()
+                        logger.info("🗑️ تم حذف الإشعار!")
+                    else:
+                        logger.info("🔍 ليست رسالة تغيير اسم.")
 
-async def delete_notifications():
-    # حذف الإشعارات من القناة
-    await client(DeleteHistory(peer=PeerChannel(TARGET_CHANNEL_ID), max_id=0, just_clear=True))
+                break
+            
+            await asyncio.sleep(3)  # فحص كل 3 ثواني
+            
+        except Exception as e:
+            logger.error(f"❌ خطأ: {e}")
+            await asyncio.sleep(10)
 
-# تشغيل العميل
-with client:
-    client.loop.run_until_complete(delete_notifications())
+if __name__ == '__main__':
+    asyncio.run(simple_delete_bot())
