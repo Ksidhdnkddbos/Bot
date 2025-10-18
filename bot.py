@@ -16,29 +16,19 @@ async def simple_delete_bot():
     
     logger.info("🚀 بوت الحذف البسيط يعمل...")
     
-    last_message_id = 0
-    
     while True:
         try:
             # الحصول على آخر رسالة
-            async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=1):
-                current_message_id = message.id
-                
-                # إذا كانت رسالة جديدة
-                if current_message_id > last_message_id:
-                    last_message_id = current_message_id
+            async for message in client.iter_messages(TARGET_CHANNEL_ID):
+                # التحقق إذا كانت إشعار تغيير اسم
+                if message.action and hasattr(message.action, 'title'):
+                    logger.info(f"🎯 إشعار تغيير اسم: {message.action.title}")
                     
-                    # التحقق إذا كانت إشعار تغيير اسم
-                    if message.action and hasattr(message.action, 'title'):
-                        logger.info(f"🎯 إشعار تغيير اسم: {message.action.title}")
-                        
-                        # حذف فوري
-                        await message.delete()
-                        logger.info("🗑️ تم حذف الإشعار!")
-                    else:
-                        logger.info("🔍 ليست رسالة تغيير اسم.")
-
-                break
+                    # حذف الإشعار
+                    await message.delete()
+                    logger.info("🗑️ تم حذف الإشعار!")
+                
+                await asyncio.sleep(1)  # الانتظار بين كل عملية حذف
             
             await asyncio.sleep(3)  # فحص كل 3 ثواني
             
