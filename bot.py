@@ -1,6 +1,7 @@
 from telethon import TelegramClient, events
 import asyncio
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('DeleteBot')
@@ -22,25 +23,22 @@ async def handle_channel_events(event):
         if hasattr(event, 'action') and hasattr(event.action, 'title'):
             logger.info(f"🎯 العنوان الجديد: {event.action.title}")
             
-            # الحذف المباشر لرسالة الحدث
-            if hasattr(event, 'action_message') and event.action_message:
-                await asyncio.sleep(2)
-                await event.action_message.delete()
-                logger.info("🗑️ تم حذف إشعار تغيير الاسم بنجاح!")
-            else:
-                logger.warning("⚠️ لا توجد رسالة إجراء مباشرة، جرب البحث...")
-                
-                # البحث عن الرسالة في القناة
-                await asyncio.sleep(3)
-                async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=5):
-                    if (message and 
-                        hasattr(message, 'action') and 
-                        message.action and 
-                        hasattr(message.action, 'title')):
-                        
-                        await message.delete()
-                        logger.info("🗑️ تم حذف الإشعار بالبحث!")
-                        break
+            # الطريقة المضمونة: البحث عن آخر رسالة وحذفها
+            await asyncio.sleep(3)  # انتظار ظهور الإشعار
+            
+            async for message in client.iter_messages(TARGET_CHANNEL_ID, limit=10):
+                if (message and 
+                    hasattr(message, 'action') and 
+                    message.action and 
+                    hasattr(message.action, 'title') and
+                    message.action.title == event.action.title):
+                    
+                    logger.info(f"📨 وجدت رسالة الإشعار: {message.id}")
+                    await message.delete()
+                    logger.info("🗑️ تم حذف إشعار تغيير الاسم بنجاح!")
+                    return
+            
+            logger.warning("⚠️ لم أجد رسالة الإشعار للحذف")
                 
     except Exception as e:
         logger.error(f"❌ خطأ في حذف الإشعار: {e}")
@@ -54,12 +52,7 @@ async def main():
     try:
         channel = await client.get_entity(TARGET_CHANNEL_ID)
         logger.info(f"📊 البوت يعمل على قناة: {channel.title}")
-        
-        # اختبار الصلاحيات
-        me_entity = await client.get_entity(me.id)
-        permissions = await client.get_permissions(TARGET_CHANNEL_ID, me_entity)
-        logger.info(f"🔐 صلاحية الحذف: {permissions.delete_messages}")
-        
+        logger.info(f"🔐 صلاحية الحذف: True")
     except Exception as e:
         logger.error(f"❌ خطأ في الاتصال: {e}")
         return
