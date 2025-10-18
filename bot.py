@@ -1,30 +1,20 @@
 from telethon import TelegramClient
-import asyncio
-import logging
+from telethon.tl.functions.messages import DeleteHistory
+from telethon.tl.types import PeerChannel
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('UltimateDeleteBot')
+# إعداد المتغيرات
+BOT_TOKEN = '7785659342:AAF8sOyTxCCTBkjBjV_El_-kj5kGyjtdns8'
+API_ID = 21623560
+API_HASH = '8c448c687d43262833a0ab100255fb43'
+TARGET_CHANNEL_ID = -1003113363809
 
-async def ultimate_delete_bot():
-    client = TelegramClient('ultimate', 21623560, '8c448c687d43262833a0ab100255fb43')
-    await client.start(bot_token='7785659342:AAF8sOyTxCCTBkjBjV_El_-kj5kGyjtdns8')
-    
-    logger.info("🔥 البوت النهائي يعمل - جاهز لحذف الإشعارات!")
-    
-    while True:
-        try:
-            # الحصول على آخر رسالة فقط
-            async for message in client.iter_messages(-1003113363809, limit=1):
-                if message.action and hasattr(message.action, 'title'):
-                    logger.info(f"🎯 حذف إشعار: {message.action.title}")
-                    await message.delete()
-                    logger.info("✅ تم الحذف!")
-                break
-                
-            await asyncio.sleep(1)  # فحص كل ثانية
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ: {e}")
-            await asyncio.sleep(3)
+# إنشاء عميل تليجرام
+client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-asyncio.run(ultimate_delete_bot())
+async def delete_notifications():
+    # حذف الإشعارات من القناة
+    await client(DeleteHistory(peer=PeerChannel(TARGET_CHANNEL_ID), max_id=0, just_clear=True))
+
+# تشغيل العميل
+with client:
+    client.loop.run_until_complete(delete_notifications())
