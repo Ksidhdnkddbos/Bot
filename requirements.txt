@@ -1,5 +1,1 @@
-requests
-pytelegrambotapi
-flask
-gunicorn
-deepseekpowsolver
+requests==2.31.0
