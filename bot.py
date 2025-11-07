@@ -4,7 +4,7 @@ import os
 
 # إعدادات الحساب - غير هذه القيم
 DEEPSEEK_EMAIL = "jjkarar76@gmail.com"  # ضع بريدك هنا
-DEEPSEEK_PASSWORD = "123karar123"      # ضع باسوردك هنا
+DEEPSEEK_PASSWORD = ""      # ضع باسوردك هنا
 
 url = "https://chat.deepseek.com/api/v0/users/login"
 
