@@ -1,5 +1,5 @@
-telethon==1.28.5
-pysocks==1.7.1
-pyasn1==0.5.0
-pyasn1-modules==0.3.0
-rsa==4.9
+requests
+pytelegrambotapi
+flask
+gunicorn
+deepseekpowsolver
