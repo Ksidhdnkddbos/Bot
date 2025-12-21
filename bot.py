@@ -12,7 +12,7 @@ BAGHDAD_TZ = pytz.timezone('Asia/Baghdad')
 
 # زخرفة الأرقام - الإصلاح هنا
 normzltext = "1234567890"
-namerzfont = ""
+namerzfont = "𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿𝟶"
 
 # إعداد التسجيل المخفف
 logging.basicConfig(
