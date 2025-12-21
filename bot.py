@@ -7,7 +7,7 @@ import logging
 
 # الإعدادات الأساسية
 TOKEN = "7145022358:AAH8Mo5WzM3HTCibUqZ-E2RYcLPXmf6b8BY"
-CHANNEL_ID = -1003449606827
+CHANNEL_ID = -1002551837124
 BAGHDAD_TZ = pytz.timezone('Asia/Baghdad')
 
 # زخرفة الأرقام - الإصلاح هنا
