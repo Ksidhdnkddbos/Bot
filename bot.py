@@ -123,7 +123,7 @@ class ChannelUpdater:
                     await self.update_channel_name()
                 
                 # انتظار أطول بين الفحوصات لتقليل الحمل
-                await asyncio.sleep(30)
+                await asyncio.sleep(15)
                 
         except KeyboardInterrupt:
             logging.info("⏹️ إيقاف البوت...")
