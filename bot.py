@@ -92,7 +92,7 @@ class ChannelUpdater:
             new_name = f"𓏺 {decorated_time} . {period}"
             await self.bot.set_chat_title(CHANNEL_ID, new_name)
             
-            logging.info(f"✅ {now.strftime('%H:%M:%S')} - {new_name}")
+     #       logging.info(f"✅ {now.strftime('%H:%M:%S')} - {new_name}")
             
             # تحديث آخر دقيقة
             self.last_minute = current_minute
