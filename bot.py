@@ -1,47 +1,143 @@
-import requests
-import json
-import os
+import asyncio
+import pytz
+from datetime import datetime
+from telegram import Bot
+from telegram.error import BadRequest, TimedOut
+import logging
 
-# إعدادات الحساب - غير هذه القيم
-DEEPSEEK_EMAIL = "jjkarar76@gmail.com"  # ضع بريدك هنا
-DEEPSEEK_PASSWORD = ""      # ضع باسوردك هنا
+# الإعدادات الأساسية
+TOKEN = "7145022358:AAH8Mo5WzM3HTCibUqZ-E2RYcLPXmf6b8BY"
+CHANNEL_ID = -1003449606827
+BAGHDAD_TZ = pytz.timezone('Asia/Baghdad')
 
-url = "https://chat.deepseek.com/api/v0/users/login"
+# زخرفة الأرقام - الإصلاح هنا
+normzltext = "1234567890"
+namerzfont = ""
 
-payload = {
-  "email": DEEPSEEK_EMAIL,
-  "mobile": "",
-  "password": DEEPSEEK_PASSWORD,
-  "area_code": "",
-  "device_id": "BZjjj0bMFgmfOaG7HTxCnyfKuigQHdbugwlfXNpJ86vHU8YHnzwO/Ju57nKzG8+Wyllv4orug3+prPpUDoFzlHg==",
-  "os": "web"
-}
+# إعداد التسجيل المخفف
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    datefmt='%H:%M:%S'
+)
 
-headers = {
-    'User-Agent': "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36",
-    'Content-Type': "application/json",
-    'x-client-locale': "en_US",
-    'x-app-version': "20241129.1",
-    'x-client-version': "1.5.0",
-    'x-client-platform': "web",
-    'origin': "https://chat.deepseek.com",
-    'referer': "https://chat.deepseek.com/sign_in",
-}
+# تعطيل السجلات غير الضرورية
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
-print("🔐 جاري تسجيل الدخول إلى DeepSeek...")
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-
-if response.status_code == 200 and 'token' in response.text:
-    hdo = response.json()
-    token = hdo['data']['biz_data']['user']['token']
+class ChannelUpdater:
+    """فئة لإدارة تحديث القناة بكفاءة"""
     
-    print('✅ تم تسجيل الدخول بنجاح!')
-    print(f'🔑 التوكن: {token}')
+    def __init__(self):
+        self.bot = Bot(token=TOKEN)
+        self.last_minute = None
+        self.consecutive_errors = 0
+        
+    def _decorate_time(self, time_str: str) -> str:
+        """تطبيق الزخرفة على الوقت بكفاءة - الإصلاح هنا"""
+        # استخدام str.maketrans بشكل صحيح
+        translator = str.maketrans(normzltext, namerzfont)
+        return time_str.translate(translator)
     
-    # حفظ التوكن في متغير بيئة (للاستخدام في Heroku)
-    print('\n💾 لإضافة التوكن إلى Heroku، استخدم:')
-    print(f'heroku config:set DEEPSEEK_TOKEN={token}')
+    async def _safe_delete_notification(self):
+        """حذف الإشعار بأمان مع تقليل استهلاك الموارد"""
+        try:
+            updates = await self.bot.get_updates(
+                offset=-1,
+                timeout=0.3,
+                limit=1
+            )
+            
+            for update in updates:
+                if (update.channel_post and 
+                    update.channel_post.chat.id == CHANNEL_ID and
+                    hasattr(update.channel_post, 'new_chat_title')):
+                    
+                    await self.bot.delete_message(
+                        CHANNEL_ID,
+                        update.channel_post.message_id
+                    )
+                    return True
+                    
+        except (TimedOut, BadRequest):
+            pass
+        except Exception:
+            self.consecutive_errors += 1
+            
+        return False
     
-else:
-    print('❌ فشل تسجيل الدخول')
-    print(f'الخطأ: {response.text}')
+    async def update_channel_name(self):
+        """تحديث اسم القناة مرة واحدة"""
+        try:
+            now = datetime.now(BAGHDAD_TZ)
+            current_minute = now.minute
+            
+            # التحقق من عدم تكرار التحديث لنفس الدقيقة
+            if current_minute == self.last_minute:
+                return False
+            
+            # تحويل الوقت إلى نظام 12 ساعة
+            hour = now.hour
+            hour_12 = hour % 12
+            if hour_12 == 0:
+                hour_12 = 12
+            
+            # تحديد الفترة (صباحاً/مساءً)
+            period = "صَ" if hour < 12 else "مَ"
+            
+            # تنسيق وزخرفة الوقت
+            time_str = f"{hour_12:02d}:{now.minute:02d}"
+            decorated_time = self._decorate_time(time_str)
+            
+            # تحديث اسم القناة
+            new_name = f"𓏺 {decorated_time} . {period}"
+            await self.bot.set_chat_title(CHANNEL_ID, new_name)
+            
+            logging.info(f"✅ {now.strftime('%H:%M:%S')} - {new_name}")
+            
+            # تحديث آخر دقيقة
+            self.last_minute = current_minute
+            self.consecutive_errors = 0
+            
+            # محاولة حذف الإشعار بعد فترة قصيرة
+            await asyncio.sleep(2)
+            await self._safe_delete_notification()
+            
+            return True
+            
+        except Exception as e:
+            self.consecutive_errors += 1
+            if self.consecutive_errors > 5:
+                logging.error(f"❌ أخطاء متتالية: {e}")
+            return False
+    
+    async def run(self):
+        """تشغيل البوت بشكل دائم"""
+        logging.info("🚀 بدأ تشغيل البوت (النسخة المحسنة والمُصلَحة)")
+        
+        try:
+            while True:
+                now = datetime.now(BAGHDAD_TZ)
+                
+                # تحديث فقط عند تغيير الدقيقة
+                if now.minute != self.last_minute:
+                    await self.update_channel_name()
+                
+                # انتظار أطول بين الفحوصات لتقليل الحمل
+                await asyncio.sleep(30)
+                
+        except KeyboardInterrupt:
+            logging.info("⏹️ إيقاف البوت...")
+        finally:
+            await self.bot.close()
+
+async def main():
+    """الدالة الرئيسية"""
+    updater = ChannelUpdater()
+    await updater.run()
+
+if __name__ == "__main__":
+    import sys
+    if not sys.flags.debug:
+        logging.getLogger("asyncio").setLevel(logging.WARNING)
+    
+    asyncio.run(main())
