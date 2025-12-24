@@ -99,7 +99,7 @@ class ChannelUpdater:
             self.consecutive_errors = 0
             
             # محاولة حذف الإشعار بعد فترة قصيرة
-            await asyncio.sleep(2)
+            await asyncio.sleep(2.6)
             await self._safe_delete_notification()
             
             return True
