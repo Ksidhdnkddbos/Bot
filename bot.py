@@ -1,54 +1,143 @@
-from telethon import TelegramClient
-from telethon.tl.types import ChannelAdminLogEventActionChangeTitle
-from telethon.tl.functions.channels import GetAdminLogRequest
-from telethon.tl.types import InputChannel
 import asyncio
+import pytz
+from datetime import datetime
+from telegram import Bot
+from telegram.error import BadRequest, TimedOut
 import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('AdminLogBot')
+# الإعدادات الأساسية
+TOKEN = "8530751992:AAHVJsD0r1KYw8ph7tCIHU0Po6Y3bLt8KGw"
+CHANNEL_ID = -1002607776935
+BAGHDAD_TZ = pytz.timezone('Asia/Baghdad')
 
-async def admin_log_bot():
-    client = TelegramClient('admin_bot', 21623560, '8c448c687d43262833a0ab100255fb43')
-    await client.start(bot_token='7785659342:AAF8sOyTxCCTBkjBjV_El_-kj5kGyjtdns8')
+# زخرفة الأرقام - الإصلاح هنا
+normzltext = "1234567890"
+namerzfont = "𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿𝟶"
+
+# إعداد التسجيل المخفف
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    datefmt='%H:%M:%S'
+)
+
+# تعطيل السجلات غير الضرورية
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+class ChannelUpdater:
+    """فئة لإدارة تحديث القناة بكفاءة"""
     
-    logger.info("🚀 بوت سجل المشرفين يعمل...")
+    def __init__(self):
+        self.bot = Bot(token=TOKEN)
+        self.last_minute = None
+        self.consecutive_errors = 0
+        
+    def _decorate_time(self, time_str: str) -> str:
+        """تطبيق الزخرفة على الوقت بكفاءة - الإصلاح هنا"""
+        # استخدام str.maketrans بشكل صحيح
+        translator = str.maketrans(normzltext, namerzfont)
+        return time_str.translate(translator)
     
-    channel = await client.get_entity(-1003113363809)
-    input_channel = InputChannel(channel.id, channel.access_hash)
-    
-    last_event = 0
-    
-    while True:
+    async def _safe_delete_notification(self):
+        """حذف الإشعار بأمان مع تقليل استهلاك الموارد"""
         try:
-            # جلب سجل المشرفين
-            result = await client(GetAdminLogRequest(
-                channel=input_channel,
-                q='',
-                max_id=0,
-                min_id=last_event,
-                limit=5
-            ))
+            updates = await self.bot.get_updates(
+                offset=-1,
+                timeout=0.3,
+                limit=1
+            )
             
-            for event in result.events:
-                if event.id > last_event:
-                    last_event = event.id
+            for update in updates:
+                if (update.channel_post and 
+                    update.channel_post.chat.id == CHANNEL_ID and
+                    hasattr(update.channel_post, 'new_chat_title')):
                     
-                    # إذا كان تغيير اسم
-                    if isinstance(event.action, ChannelAdminLogEventActionChangeTitle):
-                        logger.info(f"🔄 تغيير اسم: {event.action.new_value}")
-                        
-                        # حذف آخر رسالة (الإشعار)
-                        async for msg in client.iter_messages(channel, limit=1):
-                            if msg.action:
-                                await msg.delete()
-                                logger.info("🗑️ تم حذف الإشعار!")
-                            break
+                    await self.bot.delete_message(
+                        CHANNEL_ID,
+                        update.channel_post.message_id
+                    )
+                    return True
+                    
+        except (TimedOut, BadRequest):
+            pass
+        except Exception:
+            self.consecutive_errors += 1
             
-            await asyncio.sleep(3)
+        return False
+    
+    async def update_channel_name(self):
+        """تحديث اسم القناة مرة واحدة"""
+        try:
+            now = datetime.now(BAGHDAD_TZ)
+            current_minute = now.minute
+            
+            # التحقق من عدم تكرار التحديث لنفس الدقيقة
+            if current_minute == self.last_minute:
+                return False
+            
+            # تحويل الوقت إلى نظام 12 ساعة
+            hour = now.hour
+            hour_12 = hour % 12
+            if hour_12 == 0:
+                hour_12 = 12
+            
+            # تحديد الفترة (صباحاً/مساءً)
+            period = "صَ" if hour < 12 else "مَ"
+            
+            # تنسيق وزخرفة الوقت
+            time_str = f"{hour_12:02d}:{now.minute:02d}"
+            decorated_time = self._decorate_time(time_str)
+            
+            # تحديث اسم القناة
+            new_name = f"𓏺 {decorated_time} . {period}"
+            await self.bot.set_chat_title(CHANNEL_ID, new_name)
+            
+     #       logging.info(f"✅ {now.strftime('%H:%M:%S')} - {new_name}")
+            
+            # تحديث آخر دقيقة
+            self.last_minute = current_minute
+            self.consecutive_errors = 0
+            
+            # محاولة حذف الإشعار بعد فترة قصيرة
+            await asyncio.sleep(2.4)
+            await self._safe_delete_notification()
+            
+            return True
             
         except Exception as e:
-            logger.error(f"❌ خطأ: {e}")
-            await asyncio.sleep(5)
+            self.consecutive_errors += 1
+            if self.consecutive_errors > 5:
+                logging.error(f"❌ أخطاء متتالية: {e}")
+            return False
+    
+    async def run(self):
+        """تشغيل البوت بشكل دائم"""
+        logging.info("🚀 بدأ تشغيل البوت (النسخة المحسنة والمُصلَحة)")
+        
+        try:
+            while True:
+                now = datetime.now(BAGHDAD_TZ)
+                
+                # تحديث فقط عند تغيير الدقيقة
+                if now.minute != self.last_minute:
+                    await self.update_channel_name()
+                
+                # انتظار أطول بين الفحوصات لتقليل الحمل
+                await asyncio.sleep(15)
+                
+        except KeyboardInterrupt:
+            logging.info("⏹️ إيقاف البوت...")
+        finally:
+            await self.bot.close()
 
-asyncio.run(admin_log_bot())
+async def main():
+    """الدالة الرئيسية"""
+    updater = ChannelUpdater()
+    await updater.run()
+
+if __name__ == "__main__":
+    import sys
+    if not sys.flags.debug:
+        logging.getLogger("asyncio").setLevel(logging.WARNING)
+    
+    asyncio.run(main())
